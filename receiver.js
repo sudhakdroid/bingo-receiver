@@ -2,7 +2,15 @@ const NAMESPACE = "urn:x-cast:com.nv.simplebingo";
 
 const context = cast.framework.CastReceiverContext.getInstance();
 const options = new cast.framework.CastReceiverOptions();
+// Non-media app: do not load Shaka/MPL — otherwise the default media splash / Cast
+// artwork covers this page and it looks like “only the Cast icon”.
+options.skipPlayersLoad = true;
 options.disableIdleTimeout = true;
+// Required by CAF: namespaces must be registered before start() or custom messages fail.
+options.customNamespaces = {
+  [NAMESPACE]: cast.framework.system.MessageType.JSON,
+};
+options.statusText = "SimpleBingo";
 
 const root = document.getElementById("root");
 const numberEl = document.getElementById("number");
@@ -47,4 +55,14 @@ context.addCustomMessageListener(NAMESPACE, (event) => {
   }
 });
 
-context.start(options);
+try {
+  context.start(options);
+} catch (e) {
+  console.error("Cast receiver start failed", e);
+  if (numberEl) {
+    numberEl.textContent = "!";
+  }
+  if (phraseEl) {
+    phraseEl.textContent = "Receiver error — check console / hosting";
+  }
+}
