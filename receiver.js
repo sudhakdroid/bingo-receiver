@@ -2,15 +2,7 @@ const NAMESPACE = "urn:x-cast:com.nv.simplebingo";
 
 const context = cast.framework.CastReceiverContext.getInstance();
 const options = new cast.framework.CastReceiverOptions();
-// Non-media app: do not load Shaka/MPL — otherwise the default media splash / Cast
-// artwork covers this page and it looks like “only the Cast icon”.
-options.skipPlayersLoad = true;
 options.disableIdleTimeout = true;
-// Required by CAF: namespaces must be registered before start() or custom messages fail.
-options.customNamespaces = {
-  [NAMESPACE]: cast.framework.system.MessageType.JSON,
-};
-options.statusText = "SimpleBingo";
 
 const root = document.getElementById("root");
 const numberEl = document.getElementById("number");
@@ -24,7 +16,10 @@ function clampToPercent(value, max) {
 }
 
 function applyCallerState(payload) {
-  const number = payload.number && payload.number.length > 0 ? payload.number : "-";
+  const number =
+    payload.number && String(payload.number).trim().length > 0
+      ? String(payload.number).trim()
+      : "";
   numberEl.textContent = number;
 
   phraseEl.textContent = payload.phrase || "";
@@ -44,25 +39,24 @@ function applyCallerState(payload) {
   root.style.background = `radial-gradient(circle at top, ${accent}33, #111 60%)`;
 }
 
-context.addCustomMessageListener(NAMESPACE, (event) => {
-  try {
-    const payload = JSON.parse(event.data);
-    if (payload && payload.v === 1) {
-      applyCallerState(payload);
+function parseCustomPayload(raw) {
+  if (raw == null) return null;
+  if (typeof raw === "object" && !Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
     }
-  } catch (e) {
-    console.warn("Invalid cast payload", e);
+  }
+  return null;
+}
+
+context.addCustomMessageListener(NAMESPACE, (event) => {
+  const payload = parseCustomPayload(event.data);
+  if (payload != null && payload.v == 1) {
+    applyCallerState(payload);
   }
 });
 
-try {
-  context.start(options);
-} catch (e) {
-  console.error("Cast receiver start failed", e);
-  if (numberEl) {
-    numberEl.textContent = "!";
-  }
-  if (phraseEl) {
-    phraseEl.textContent = "Receiver error — check console / hosting";
-  }
-}
+context.start(options);
