@@ -311,7 +311,8 @@ function applyCallerState(payload) {
 
   const titleText = payload.title != null ? String(payload.title).trim() : "";
   titleEl.textContent = titleText;
-  titleEl.style.color = accent;
+  // Use on-surface color so the title stays readable on the accent-tinted top gradient (esp. 90-ball purple).
+  titleEl.style.color = onSurf && String(onSurf).trim().length > 0 ? onSurf : "#e8e8e8";
 
   countdownFillEl.style.backgroundColor = accent;
 
