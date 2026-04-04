@@ -16,6 +16,13 @@ const phraseEl = document.getElementById("phrase");
 const countdownEl = document.getElementById("countdown");
 const countdownFillEl = document.getElementById("countdownFill");
 const boardEl = document.getElementById("board");
+const boardWrap = document.getElementById("boardWrap");
+
+/** Pixel gap between grid cells — must match `.board-grid { gap }` in index.html */
+const BOARD_GAP_PX = 4;
+
+/** Last cast payload — used to refit the grid on resize */
+let lastPayload = null;
 
 function clampToPercent(value, max) {
   if (max <= 0) return 0;
@@ -76,7 +83,7 @@ function renderBoard75(payload, accent, neutral, onSurf) {
   const just = payload.justCalled;
   const prev = payload.previousCalled;
   const grid = document.createElement("div");
-  grid.className = "board-grid cols-5";
+  grid.className = "board-grid";
   "BINGO".split("").forEach((letter) => {
     const h = document.createElement("div");
     h.className = "cell header-letter";
@@ -142,7 +149,7 @@ function renderBoard10(payload, accent, neutral, outR, onSurf) {
   const prev = payload.previousCalled;
   const numRows = Math.ceil(bingoSize / 10);
   const grid = document.createElement("div");
-  grid.className = "board-grid cols-10";
+  grid.className = "board-grid";
   for (let row = 0; row < numRows; row++) {
     for (let col = 0; col < 10; col++) {
       const n = row * 10 + col + 1;
@@ -164,7 +171,64 @@ function renderBoard(payload, accent, neutral, outR, onSurf) {
   }
 }
 
+/**
+ * Size the grid so the full board fits inside #boardWrap (no clipping).
+ * Uses min(cellW, cellH) so rows×cols always fit the available rectangle.
+ */
+function fitBoardGrid() {
+  const grid = boardEl.querySelector(".board-grid");
+  if (!grid || !boardWrap || !lastPayload) return;
+  const bingoSize = lastPayload.bingoSize;
+  if (typeof bingoSize !== "number" || bingoSize <= 0) return;
+
+  let cols;
+  let rows;
+  if (bingoSize === 75) {
+    cols = 5;
+    rows = 16;
+  } else {
+    cols = 10;
+    rows = Math.ceil(bingoSize / 10);
+  }
+
+  const gap = BOARD_GAP_PX;
+  const w = boardWrap.clientWidth;
+  const h = boardWrap.clientHeight;
+  if (w < 4 || h < 4) return;
+
+  const cellW = (w - gap * (cols - 1)) / cols;
+  const cellH = (h - gap * (rows - 1)) / rows;
+  let cell = Math.floor(Math.min(cellW, cellH));
+  cell = Math.max(6, cell);
+
+  const totalW = cell * cols + gap * (cols - 1);
+  const totalH = cell * rows + gap * (rows - 1);
+
+  grid.style.gridTemplateColumns = `repeat(${cols}, ${cell}px)`;
+  grid.style.gridTemplateRows = `repeat(${rows}, ${cell}px)`;
+  grid.style.width = `${totalW}px`;
+  grid.style.height = `${totalH}px`;
+  grid.style.margin = "0 auto";
+
+  const fontSize = Math.max(7, Math.min(22, cell * 0.36));
+  const headerFont = Math.max(8, Math.min(24, cell * 0.4));
+
+  grid.querySelectorAll(".cell").forEach((el) => {
+    el.style.width = `${cell}px`;
+    el.style.height = `${cell}px`;
+    el.style.boxSizing = "border-box";
+    el.style.fontSize = el.classList.contains("header-letter") ? `${headerFont}px` : `${fontSize}px`;
+  });
+}
+
+function scheduleFitBoard() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => fitBoardGrid());
+  });
+}
+
 function applyCallerState(payload) {
+  lastPayload = payload;
   const number =
     payload.number && String(payload.number).trim().length > 0
       ? String(payload.number).trim()
@@ -203,6 +267,7 @@ function applyCallerState(payload) {
   root.style.background = `radial-gradient(circle at top, ${hexWithAlpha(accent, 0.2)}, ${pageBg} 60%)`;
 
   renderBoard(payload, accent, neutral, outR, onSurf);
+  scheduleFitBoard();
 }
 
 function hexWithAlpha(hex, alpha) {
@@ -235,3 +300,7 @@ context.addCustomMessageListener(NAMESPACE, (event) => {
 });
 
 context.start(options);
+
+if (typeof ResizeObserver !== "undefined" && boardWrap) {
+  new ResizeObserver(() => scheduleFitBoard()).observe(boardWrap);
+}
