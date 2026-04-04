@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SimpleBingo Cast Receiver</title>
+  <title>Bingo Caller Pro Cast Receiver</title>
   <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
   <style>
     html, body {
@@ -45,6 +45,39 @@
       gap: 0.25rem;
       padding-bottom: 0.35rem;
       min-height: 0;
+    }
+    /* Mirrors Compose CallerStage / home AnimatedContent: scaleIn(0.5) + fadeIn with medium-bouncy spring */
+    @keyframes heroReveal {
+      0% {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+      72% {
+        opacity: 1;
+        transform: scale(1.04);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    .hero-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      transform-origin: center center;
+    }
+    .hero-inner.hero-reveal {
+      animation: heroReveal 0.55s cubic-bezier(0.33, 1.24, 0.52, 1) forwards;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-inner.hero-reveal {
+        animation: none;
+        opacity: 1;
+        transform: none;
+      }
     }
     .number {
       font-size: clamp(2.85rem, min(14vmin, 19vh), 11rem);
@@ -137,8 +170,10 @@
   <div class="root" id="root">
     <div class="title" id="title"></div>
     <div class="hero">
-      <div class="number" id="number"></div>
-      <div class="phrase" id="phrase"></div>
+      <div class="hero-inner" id="heroInner">
+        <div class="number" id="number"></div>
+        <div class="phrase" id="phrase"></div>
+      </div>
     </div>
     <div class="countdown" id="countdown" style="display:none;">
       <div class="countdownFill" id="countdownFill"></div>

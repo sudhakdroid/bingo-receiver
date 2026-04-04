@@ -17,6 +17,10 @@ const countdownEl = document.getElementById("countdown");
 const countdownFillEl = document.getElementById("countdownFill");
 const boardEl = document.getElementById("board");
 const boardWrap = document.getElementById("boardWrap");
+const heroInnerEl = document.getElementById("heroInner");
+
+/** Same key as Compose AnimatedContent targetState Pair(number, phrase) — animate when either changes */
+let lastHeroAnimationKey = null;
 
 /** Pixel gap between grid cells — must match `.board-grid { gap }` in index.html */
 const BOARD_GAP_PX = 4;
@@ -221,6 +225,24 @@ function renderBoard(payload, accent, neutral, outR, onSurf) {
  * Size the grid so the full board fits inside #boardWrap (no clipping).
  * Uses min(cellW, cellH) so rows×cols always fit the available rectangle.
  */
+/**
+ * Re-run the hero scale/fade-in (matches phone CallerStage / home screen).
+ * Only when the visible number/phrase identity changes, not on countdown-only updates.
+ */
+function maybePlayHeroReveal(numberStr, phraseText) {
+  if (!heroInnerEl) return;
+  const key = `${numberStr}\u0000${phraseText}`;
+  if (key === lastHeroAnimationKey) return;
+  lastHeroAnimationKey = key;
+  if (!numberStr || numberStr.length === 0) {
+    heroInnerEl.classList.remove("hero-reveal");
+    return;
+  }
+  heroInnerEl.classList.remove("hero-reveal");
+  void heroInnerEl.offsetWidth;
+  heroInnerEl.classList.add("hero-reveal");
+}
+
 function fitBoardGrid() {
   const grid = boardEl.querySelector(".board-grid");
   if (!grid || !boardWrap || !lastPayload) return;
@@ -278,6 +300,8 @@ function applyCallerState(payload) {
   const phraseText = payload.phrase ? String(payload.phrase).trim() : "";
   phraseEl.textContent = phraseText;
   phraseEl.style.display = phraseText.length > 0 ? "block" : "none";
+
+  maybePlayHeroReveal(number, phraseText);
 
   const accent = payload.accent || "#6A1B9A";
   const neutral = payload.neutralTile || "#1e1e1e";
