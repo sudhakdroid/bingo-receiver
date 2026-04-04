@@ -24,6 +24,9 @@ const BOARD_GAP_PX = 4;
 /** Last cast payload — used to refit the grid on resize */
 let lastPayload = null;
 
+/** Cached board: avoid replacing the whole grid on every draw (only rebuild when bingoSize changes). */
+let boardCache = { bingoSize: null, grid: null };
+
 function clampToPercent(value, max) {
   if (max <= 0) return 0;
   return Math.max(0, Math.min(100, (value / max) * 100));
@@ -46,39 +49,74 @@ function parseCalledSet(payload) {
   return new Set();
 }
 
-function appendCell75(grid, n, calledSet, just, prev, accent, neutral, onSurf) {
+function styleCell75(el, n, calledSet, just, prev, accent, neutral, onSurf) {
+  el.className = "cell";
+  el.textContent = String(n);
   const called = calledSet.has(n);
   const isJust = called && just != null && n === just;
   const isPrev = called && prev != null && n === prev && !isJust;
-  const div = document.createElement("div");
-  div.className = "cell";
-  div.textContent = String(n);
   if (called) {
-    div.classList.add("called");
-    div.style.background = accent;
+    el.classList.add("called");
+    el.style.background = accent;
     if (isJust) {
-      div.classList.add("just-called");
-      div.style.color = TEXT_JUST_ON_ACCENT;
-      div.style.borderColor = JUST_BORDER;
-      div.style.borderWidth = "2px";
+      el.classList.add("just-called");
+      el.style.color = TEXT_JUST_ON_ACCENT;
+      el.style.borderColor = JUST_BORDER;
+      el.style.borderWidth = "2px";
     } else if (isPrev) {
-      div.classList.add("previous-called");
-      div.style.color = TEXT_ON_ACCENT;
-      div.style.borderColor = PREV_BORDER;
-      div.style.borderWidth = "1.5px";
+      el.classList.add("previous-called");
+      el.style.color = TEXT_ON_ACCENT;
+      el.style.borderColor = PREV_BORDER;
+      el.style.borderWidth = "1.5px";
     } else {
-      div.style.color = TEXT_ON_ACCENT;
-      div.style.borderColor = "transparent";
+      el.style.color = TEXT_ON_ACCENT;
+      el.style.borderColor = "transparent";
     }
   } else {
-    div.style.background = neutral;
-    div.style.color = onSurf;
-    div.style.borderColor = "transparent";
+    el.style.background = neutral;
+    el.style.color = onSurf;
+    el.style.borderColor = "transparent";
   }
-  grid.appendChild(div);
 }
 
-function renderBoard75(payload, accent, neutral, onSurf) {
+function styleCell10(el, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf) {
+  const inRange = n <= bingoSize;
+  el.className = "cell";
+  if (!inRange) {
+    el.style.background = outR;
+    el.style.borderColor = "transparent";
+    el.textContent = "";
+    return;
+  }
+  el.textContent = String(n);
+  const called = calledSet.has(n);
+  const isJust = called && just != null && n === just;
+  const isPrev = called && prev != null && n === prev && !isJust;
+  if (called) {
+    el.classList.add("called");
+    el.style.background = accent;
+    if (isJust) {
+      el.classList.add("just-called");
+      el.style.color = TEXT_JUST_ON_ACCENT;
+      el.style.borderColor = JUST_BORDER;
+      el.style.borderWidth = "2px";
+    } else if (isPrev) {
+      el.classList.add("previous-called");
+      el.style.color = TEXT_ON_ACCENT;
+      el.style.borderColor = PREV_BORDER;
+      el.style.borderWidth = "1.5px";
+    } else {
+      el.style.color = TEXT_ON_ACCENT;
+      el.style.borderColor = "transparent";
+    }
+  } else {
+    el.style.background = neutral;
+    el.style.color = onSurf;
+    el.style.borderColor = "transparent";
+  }
+}
+
+function buildBoard75(payload, accent, neutral, onSurf) {
   const calledSet = parseCalledSet(payload);
   const just = payload.justCalled;
   const prev = payload.previousCalled;
@@ -96,53 +134,15 @@ function renderBoard75(payload, accent, neutral, onSurf) {
   for (let row = 0; row < 15; row++) {
     for (let col = 0; col < 5; col++) {
       const n = col * 15 + row + 1;
-      appendCell75(grid, n, calledSet, just, prev, accent, neutral, onSurf);
+      const div = document.createElement("div");
+      styleCell75(div, n, calledSet, just, prev, accent, neutral, onSurf);
+      grid.appendChild(div);
     }
   }
-  boardEl.replaceChildren(grid);
+  return grid;
 }
 
-function appendCell10(grid, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf) {
-  const inRange = n <= bingoSize;
-  const div = document.createElement("div");
-  div.className = "cell";
-  if (!inRange) {
-    div.style.background = outR;
-    div.style.borderColor = "transparent";
-    div.textContent = "";
-    grid.appendChild(div);
-    return;
-  }
-  const called = calledSet.has(n);
-  const isJust = called && just != null && n === just;
-  const isPrev = called && prev != null && n === prev && !isJust;
-  div.textContent = String(n);
-  if (called) {
-    div.classList.add("called");
-    div.style.background = accent;
-    if (isJust) {
-      div.classList.add("just-called");
-      div.style.color = TEXT_JUST_ON_ACCENT;
-      div.style.borderColor = JUST_BORDER;
-      div.style.borderWidth = "2px";
-    } else if (isPrev) {
-      div.classList.add("previous-called");
-      div.style.color = TEXT_ON_ACCENT;
-      div.style.borderColor = PREV_BORDER;
-      div.style.borderWidth = "1.5px";
-    } else {
-      div.style.color = TEXT_ON_ACCENT;
-      div.style.borderColor = "transparent";
-    }
-  } else {
-    div.style.background = neutral;
-    div.style.color = onSurf;
-    div.style.borderColor = "transparent";
-  }
-  grid.appendChild(div);
-}
-
-function renderBoard10(payload, accent, neutral, outR, onSurf) {
+function buildBoard10(payload, accent, neutral, outR, onSurf) {
   const bingoSize = payload.bingoSize;
   const calledSet = parseCalledSet(payload);
   const just = payload.justCalled;
@@ -153,22 +153,68 @@ function renderBoard10(payload, accent, neutral, outR, onSurf) {
   for (let row = 0; row < numRows; row++) {
     for (let col = 0; col < 10; col++) {
       const n = row * 10 + col + 1;
-      appendCell10(grid, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf);
+      const div = document.createElement("div");
+      styleCell10(div, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf);
+      grid.appendChild(div);
     }
   }
-  boardEl.replaceChildren(grid);
+  return grid;
+}
+
+function updateBoard75(grid, payload, accent, neutral, onSurf) {
+  const calledSet = parseCalledSet(payload);
+  const just = payload.justCalled;
+  const prev = payload.previousCalled;
+  const cells = grid.querySelectorAll(".cell");
+  for (let ci = 5; ci < cells.length; ci++) {
+    const idx = ci - 5;
+    const row = Math.floor(idx / 5);
+    const col = idx % 5;
+    const n = col * 15 + row + 1;
+    styleCell75(cells[ci], n, calledSet, just, prev, accent, neutral, onSurf);
+  }
+}
+
+function updateBoard10(grid, payload, accent, neutral, outR, onSurf) {
+  const bingoSize = payload.bingoSize;
+  const calledSet = parseCalledSet(payload);
+  const just = payload.justCalled;
+  const prev = payload.previousCalled;
+  const cells = grid.querySelectorAll(".cell");
+  cells.forEach((el, idx) => {
+    const row = Math.floor(idx / 10);
+    const col = idx % 10;
+    const n = row * 10 + col + 1;
+    styleCell10(el, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf);
+  });
 }
 
 function renderBoard(payload, accent, neutral, outR, onSurf) {
   if (typeof payload.bingoSize !== "number" || payload.bingoSize <= 0) {
     boardEl.replaceChildren();
+    boardCache = { bingoSize: null, grid: null };
     return;
   }
-  if (payload.bingoSize === 75) {
-    renderBoard75(payload, accent, neutral, onSurf);
-  } else {
-    renderBoard10(payload, accent, neutral, outR, onSurf);
+
+  const bs = payload.bingoSize;
+  const gridStillMounted =
+    boardCache.grid &&
+    boardCache.bingoSize === bs &&
+    boardCache.grid.parentNode === boardEl;
+
+  if (gridStillMounted) {
+    if (bs === 75) {
+      updateBoard75(boardCache.grid, payload, accent, neutral, onSurf);
+    } else {
+      updateBoard10(boardCache.grid, payload, accent, neutral, outR, onSurf);
+    }
+    return;
   }
+
+  const grid = bs === 75 ? buildBoard75(payload, accent, neutral, onSurf) : buildBoard10(payload, accent, neutral, outR, onSurf);
+  boardEl.replaceChildren(grid);
+  boardCache = { bingoSize: bs, grid };
+  fitBoardGrid();
 }
 
 /**
@@ -221,12 +267,6 @@ function fitBoardGrid() {
   });
 }
 
-function scheduleFitBoard() {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => fitBoardGrid());
-  });
-}
-
 function applyCallerState(payload) {
   lastPayload = payload;
   const number =
@@ -267,7 +307,6 @@ function applyCallerState(payload) {
   root.style.background = `radial-gradient(circle at top, ${hexWithAlpha(accent, 0.2)}, ${pageBg} 60%)`;
 
   renderBoard(payload, accent, neutral, outR, onSurf);
-  scheduleFitBoard();
 }
 
 function hexWithAlpha(hex, alpha) {
@@ -302,5 +341,7 @@ context.addCustomMessageListener(NAMESPACE, (event) => {
 context.start(options);
 
 if (typeof ResizeObserver !== "undefined" && boardWrap) {
-  new ResizeObserver(() => scheduleFitBoard()).observe(boardWrap);
+  new ResizeObserver(() => {
+    requestAnimationFrame(() => fitBoardGrid());
+  }).observe(boardWrap);
 }
