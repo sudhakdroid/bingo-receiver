@@ -18,6 +18,7 @@ const countdownFillEl = document.getElementById("countdownFill");
 const boardEl = document.getElementById("board");
 const boardWrap = document.getElementById("boardWrap");
 const heroInnerEl = document.getElementById("heroInner");
+const castWatermarkEl = document.getElementById("castWatermark");
 
 /** Same key as Compose AnimatedContent targetState Pair(number, phrase) — animate when either changes */
 let lastHeroAnimationKey = null;
@@ -311,8 +312,19 @@ function applyCallerState(payload) {
 
   const titleText = payload.title != null ? String(payload.title).trim() : "";
   titleEl.textContent = titleText;
-  // Use on-surface color so the title stays readable on the accent-tinted top gradient (esp. 90-ball purple).
-  titleEl.style.color = onSurf && String(onSurf).trim().length > 0 ? onSurf : "#e8e8e8";
+  // Match app: hero number and board title use mode accent (not onSurface — avoids harsh black in light theme).
+  titleEl.style.color = accent;
+  titleEl.style.textShadow = `0 2px 14px ${hexWithAlpha(accent, 0.35)}`;
+
+  numberEl.style.color = accent;
+  numberEl.style.textShadow = `0 4px 42px ${hexWithAlpha(accent, 0.45)}`;
+
+  if (castWatermarkEl) {
+    castWatermarkEl.style.color = accent;
+    castWatermarkEl.style.opacity = "0.26";
+  }
+
+  phraseEl.style.color = onSurf && String(onSurf).trim().length > 0 ? onSurf : "#e3e3e3";
 
   countdownFillEl.style.backgroundColor = accent;
 
