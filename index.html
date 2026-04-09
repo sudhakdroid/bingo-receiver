@@ -68,19 +68,19 @@
       padding-bottom: 0.35rem;
       min-height: 0;
     }
-    /* Mirrors Compose CallerStage / home AnimatedContent: scaleIn(0.5) + fadeIn with medium-bouncy spring */
-    @keyframes heroReveal {
+    /* Match app caller stage: number slides up with fade while phrase/countdown stay static. */
+    @keyframes numberReveal {
       0% {
         opacity: 0;
-        transform: scale(0.5);
+        transform: translateY(34%) scale(0.94);
       }
-      72% {
+      76% {
         opacity: 1;
-        transform: scale(1.04);
+        transform: translateY(-4%) scale(1.01);
       }
       100% {
         opacity: 1;
-        transform: scale(1);
+        transform: translateY(0) scale(1);
       }
     }
     .hero-inner {
@@ -91,11 +91,11 @@
       gap: 0.25rem;
       transform-origin: center center;
     }
-    .hero-inner.hero-reveal {
-      animation: heroReveal 0.55s cubic-bezier(0.33, 1.24, 0.52, 1) forwards;
+    .number.number-reveal {
+      animation: numberReveal 0.42s cubic-bezier(0.26, 0.9, 0.35, 1.08) forwards;
     }
     @media (prefers-reduced-motion: reduce) {
-      .hero-inner.hero-reveal {
+      .number.number-reveal {
         animation: none;
         opacity: 1;
         transform: none;

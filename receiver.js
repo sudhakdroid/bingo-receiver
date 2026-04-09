@@ -17,11 +17,10 @@ const countdownEl = document.getElementById("countdown");
 const countdownFillEl = document.getElementById("countdownFill");
 const boardEl = document.getElementById("board");
 const boardWrap = document.getElementById("boardWrap");
-const heroInnerEl = document.getElementById("heroInner");
 const castWatermarkEl = document.getElementById("castWatermark");
 
-/** Same key as Compose AnimatedContent targetState Pair(number, phrase) — animate when either changes */
-let lastHeroAnimationKey = null;
+/** Match app caller stage: only animate when number changes. */
+let lastNumberAnimationKey = null;
 
 /** Pixel gap between grid cells — must match `.board-grid { gap }` in index.html */
 const BOARD_GAP_PX = 4;
@@ -226,22 +225,19 @@ function renderBoard(payload, accent, neutral, outR, onSurf) {
  * Size the grid so the full board fits inside #boardWrap (no clipping).
  * Uses min(cellW, cellH) so rows×cols always fit the available rectangle.
  */
-/**
- * Re-run the hero scale/fade-in (matches phone CallerStage / home screen).
- * Only when the visible number/phrase identity changes, not on countdown-only updates.
- */
-function maybePlayHeroReveal(numberStr, phraseText) {
-  if (!heroInnerEl) return;
-  const key = `${numberStr}\u0000${phraseText}`;
-  if (key === lastHeroAnimationKey) return;
-  lastHeroAnimationKey = key;
+/** Re-run number-only reveal (phrase/countdown remain static). */
+function maybePlayNumberReveal(numberStr) {
+  if (!numberEl) return;
+  const key = String(numberStr || "");
+  if (key === lastNumberAnimationKey) return;
+  lastNumberAnimationKey = key;
   if (!numberStr || numberStr.length === 0) {
-    heroInnerEl.classList.remove("hero-reveal");
+    numberEl.classList.remove("number-reveal");
     return;
   }
-  heroInnerEl.classList.remove("hero-reveal");
-  void heroInnerEl.offsetWidth;
-  heroInnerEl.classList.add("hero-reveal");
+  numberEl.classList.remove("number-reveal");
+  void numberEl.offsetWidth;
+  numberEl.classList.add("number-reveal");
 }
 
 function fitBoardGrid() {
@@ -302,7 +298,7 @@ function applyCallerState(payload) {
   phraseEl.textContent = phraseText;
   phraseEl.style.display = phraseText.length > 0 ? "block" : "none";
 
-  maybePlayHeroReveal(number, phraseText);
+  maybePlayNumberReveal(number);
 
   const accent = payload.accent || "#6A1B9A";
   const neutral = payload.neutralTile || "#1e1e1e";
