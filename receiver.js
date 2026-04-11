@@ -36,6 +36,44 @@ function clampToPercent(value, max) {
   return Math.max(0, Math.min(100, (value / max) * 100));
 }
 
+function hexToRgb(hex) {
+  const m = String(hex || "").match(/^#([0-9a-fA-F]{6})$/);
+  if (!m) return null;
+  return {
+    r: parseInt(m[1].slice(0, 2), 16),
+    g: parseInt(m[1].slice(2, 4), 16),
+    b: parseInt(m[1].slice(4, 6), 16),
+  };
+}
+
+function relativeLuminance(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  const toLinear = (v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const r = toLinear(rgb.r);
+  const g = toLinear(rgb.g);
+  const b = toLinear(rgb.b);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(hexA, hexB) {
+  const l1 = relativeLuminance(hexA);
+  const l2 = relativeLuminance(hexB);
+  const hi = Math.max(l1, l2);
+  const lo = Math.min(l1, l2);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+function pickReadableForeground(preferred, fallbackLight, fallbackDark, bg) {
+  if (contrastRatio(preferred, bg) >= 3.1) return preferred;
+  const lightContrast = contrastRatio(fallbackLight, bg);
+  const darkContrast = contrastRatio(fallbackDark, bg);
+  return lightContrast >= darkContrast ? fallbackLight : fallbackDark;
+}
+
 function parseCalledSet(payload) {
   const raw = payload.calledNumbers;
   if (raw == null) return new Set();
@@ -305,22 +343,28 @@ function applyCallerState(payload) {
   const outR = payload.outOfRange || "#2d2d2d";
   const onSurf = payload.onSurface || "#e3e3e3";
   const pageBg = payload.pageBg || "#111111";
+  const onSurfaceVariant = payload.onSurfaceVariant || onSurf;
+  const surface = payload.surface || pageBg;
+  const bgIsDark = typeof payload.isDarkTheme === "boolean"
+    ? payload.isDarkTheme
+    : relativeLuminance(pageBg) < 0.36;
 
   const titleText = payload.title != null ? String(payload.title).trim() : "";
   titleEl.textContent = titleText;
-  // Match app: hero number and board title use mode accent (not onSurface — avoids harsh black in light theme).
-  titleEl.style.color = accent;
-  titleEl.style.textShadow = `0 2px 14px ${hexWithAlpha(accent, 0.35)}`;
+  const heroColor = pickReadableForeground(accent, "#FFFFFF", "#111111", pageBg);
+  const titleColor = pickReadableForeground(accent, onSurf, "#1A1A1A", pageBg);
+  titleEl.style.color = titleColor;
+  titleEl.style.textShadow = `0 2px 12px ${hexWithAlpha(heroColor, bgIsDark ? 0.32 : 0.18)}`;
 
-  numberEl.style.color = accent;
-  numberEl.style.textShadow = `0 4px 42px ${hexWithAlpha(accent, 0.45)}`;
+  numberEl.style.color = heroColor;
+  numberEl.style.textShadow = `0 4px 38px ${hexWithAlpha(heroColor, bgIsDark ? 0.42 : 0.22)}`;
 
   if (castWatermarkEl) {
     castWatermarkEl.style.color = accent;
     castWatermarkEl.style.opacity = "0.26";
   }
 
-  phraseEl.style.color = onSurf && String(onSurf).trim().length > 0 ? onSurf : "#e3e3e3";
+  phraseEl.style.color = onSurfaceVariant && String(onSurfaceVariant).trim().length > 0 ? onSurfaceVariant : "#e3e3e3";
 
   countdownFillEl.style.backgroundColor = accent;
 
@@ -337,7 +381,19 @@ function applyCallerState(payload) {
     countdownFillEl.style.width = "0%";
   }
 
-  root.style.background = `radial-gradient(circle at top, ${hexWithAlpha(accent, 0.2)}, ${pageBg} 60%)`;
+  if (bgIsDark) {
+    root.style.background = [
+      `radial-gradient(circle at 50% 18%, ${hexWithAlpha(accent, 0.34)} 0%, ${hexWithAlpha(accent, 0.14)} 36%, transparent 70%)`,
+      `linear-gradient(180deg, ${hexWithAlpha(surface, 0.96)} 0%, ${hexWithAlpha(pageBg, 1)} 56%, ${hexWithAlpha(pageBg, 1)} 100%)`,
+      `radial-gradient(circle at 50% 92%, ${hexWithAlpha(accent, 0.16)} 0%, transparent 62%)`
+    ].join(",");
+  } else {
+    root.style.background = [
+      `linear-gradient(180deg, ${hexWithAlpha(surface, 1)} 0%, ${hexWithAlpha(pageBg, 1)} 42%, ${hexWithAlpha(pageBg, 1)} 100%)`,
+      `radial-gradient(circle at 50% 12%, ${hexWithAlpha(accent, 0.14)} 0%, ${hexWithAlpha(accent, 0.06)} 30%, transparent 58%)`,
+      `radial-gradient(circle at 50% 88%, ${hexWithAlpha(accent, 0.07)} 0%, transparent 52%)`
+    ].join(",");
+  }
 
   renderBoard(payload, accent, neutral, outR, onSurf);
 }
