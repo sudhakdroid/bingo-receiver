@@ -74,6 +74,23 @@ function pickReadableForeground(preferred, fallbackLight, fallbackDark, bg) {
   return lightContrast >= darkContrast ? fallbackLight : fallbackDark;
 }
 
+function blendHex(baseHex, tintHex, tintAmount) {
+  const base = hexToRgb(baseHex);
+  const tint = hexToRgb(tintHex);
+  if (!base || !tint) return baseHex;
+  const t = Math.max(0, Math.min(1, Number(tintAmount) || 0));
+  const mix = (a, b) => Math.round(a * (1 - t) + b * t);
+  const r = mix(base.r, tint.r);
+  const g = mix(base.g, tint.g);
+  const b = mix(base.b, tint.b);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
+function ensureTileContrast(tileHex, bgHex, darkenAmount) {
+  if (contrastRatio(tileHex, bgHex) >= 1.2) return tileHex;
+  return blendHex(tileHex, "#000000", darkenAmount);
+}
+
 function parseCalledSet(payload) {
   const raw = payload.calledNumbers;
   if (raw == null) return new Set();
@@ -91,7 +108,7 @@ function parseCalledSet(payload) {
   return new Set();
 }
 
-function styleCell75(el, n, calledSet, just, prev, accent, neutral, onSurf) {
+function styleCell75(el, n, calledSet, just, prev, accent, neutral, onSurf, gridBorder) {
   el.className = "cell";
   el.textContent = String(n);
   const called = calledSet.has(n);
@@ -117,16 +134,18 @@ function styleCell75(el, n, calledSet, just, prev, accent, neutral, onSurf) {
   } else {
     el.style.background = neutral;
     el.style.color = onSurf;
-    el.style.borderColor = "transparent";
+    el.style.borderColor = gridBorder;
+    el.style.borderWidth = "1px";
   }
 }
 
-function styleCell10(el, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf) {
+function styleCell10(el, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf, gridBorder) {
   const inRange = n <= bingoSize;
   el.className = "cell";
   if (!inRange) {
     el.style.background = outR;
-    el.style.borderColor = "transparent";
+    el.style.borderColor = gridBorder;
+    el.style.borderWidth = "1px";
     el.textContent = "";
     return;
   }
@@ -154,11 +173,12 @@ function styleCell10(el, n, bingoSize, calledSet, just, prev, accent, neutral, o
   } else {
     el.style.background = neutral;
     el.style.color = onSurf;
-    el.style.borderColor = "transparent";
+    el.style.borderColor = gridBorder;
+    el.style.borderWidth = "1px";
   }
 }
 
-function buildBoard75(payload, accent, neutral, onSurf) {
+function buildBoard75(payload, accent, neutral, onSurf, gridBorder) {
   const calledSet = parseCalledSet(payload);
   const just = payload.justCalled;
   const prev = payload.previousCalled;
@@ -177,14 +197,14 @@ function buildBoard75(payload, accent, neutral, onSurf) {
     for (let col = 0; col < 5; col++) {
       const n = col * 15 + row + 1;
       const div = document.createElement("div");
-      styleCell75(div, n, calledSet, just, prev, accent, neutral, onSurf);
+      styleCell75(div, n, calledSet, just, prev, accent, neutral, onSurf, gridBorder);
       grid.appendChild(div);
     }
   }
   return grid;
 }
 
-function buildBoard10(payload, accent, neutral, outR, onSurf) {
+function buildBoard10(payload, accent, neutral, outR, onSurf, gridBorder) {
   const bingoSize = payload.bingoSize;
   const calledSet = parseCalledSet(payload);
   const just = payload.justCalled;
@@ -196,14 +216,14 @@ function buildBoard10(payload, accent, neutral, outR, onSurf) {
     for (let col = 0; col < 10; col++) {
       const n = row * 10 + col + 1;
       const div = document.createElement("div");
-      styleCell10(div, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf);
+      styleCell10(div, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf, gridBorder);
       grid.appendChild(div);
     }
   }
   return grid;
 }
 
-function updateBoard75(grid, payload, accent, neutral, onSurf) {
+function updateBoard75(grid, payload, accent, neutral, onSurf, gridBorder) {
   const calledSet = parseCalledSet(payload);
   const just = payload.justCalled;
   const prev = payload.previousCalled;
@@ -213,11 +233,11 @@ function updateBoard75(grid, payload, accent, neutral, onSurf) {
     const row = Math.floor(idx / 5);
     const col = idx % 5;
     const n = col * 15 + row + 1;
-    styleCell75(cells[ci], n, calledSet, just, prev, accent, neutral, onSurf);
+    styleCell75(cells[ci], n, calledSet, just, prev, accent, neutral, onSurf, gridBorder);
   }
 }
 
-function updateBoard10(grid, payload, accent, neutral, outR, onSurf) {
+function updateBoard10(grid, payload, accent, neutral, outR, onSurf, gridBorder) {
   const bingoSize = payload.bingoSize;
   const calledSet = parseCalledSet(payload);
   const just = payload.justCalled;
@@ -227,11 +247,11 @@ function updateBoard10(grid, payload, accent, neutral, outR, onSurf) {
     const row = Math.floor(idx / 10);
     const col = idx % 10;
     const n = row * 10 + col + 1;
-    styleCell10(el, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf);
+    styleCell10(el, n, bingoSize, calledSet, just, prev, accent, neutral, outR, onSurf, gridBorder);
   });
 }
 
-function renderBoard(payload, accent, neutral, outR, onSurf) {
+function renderBoard(payload, accent, neutral, outR, onSurf, gridBorder) {
   if (typeof payload.bingoSize !== "number" || payload.bingoSize <= 0) {
     boardEl.replaceChildren();
     boardCache = { bingoSize: null, grid: null };
@@ -246,14 +266,16 @@ function renderBoard(payload, accent, neutral, outR, onSurf) {
 
   if (gridStillMounted) {
     if (bs === 75) {
-      updateBoard75(boardCache.grid, payload, accent, neutral, onSurf);
+      updateBoard75(boardCache.grid, payload, accent, neutral, onSurf, gridBorder);
     } else {
-      updateBoard10(boardCache.grid, payload, accent, neutral, outR, onSurf);
+      updateBoard10(boardCache.grid, payload, accent, neutral, outR, onSurf, gridBorder);
     }
     return;
   }
 
-  const grid = bs === 75 ? buildBoard75(payload, accent, neutral, onSurf) : buildBoard10(payload, accent, neutral, outR, onSurf);
+  const grid = bs === 75
+    ? buildBoard75(payload, accent, neutral, onSurf, gridBorder)
+    : buildBoard10(payload, accent, neutral, outR, onSurf, gridBorder);
   boardEl.replaceChildren(grid);
   boardCache = { bingoSize: bs, grid };
   fitBoardGrid();
@@ -382,20 +404,30 @@ function applyCallerState(payload) {
   }
 
   if (bgIsDark) {
+    const neutralTile = neutral;
+    const outOfRangeTile = outR;
+    const gridBorder = hexWithAlpha("#FFFFFF", 0.08);
     root.style.background = [
       `radial-gradient(circle at 50% 18%, ${hexWithAlpha(accent, 0.34)} 0%, ${hexWithAlpha(accent, 0.14)} 36%, transparent 70%)`,
       `linear-gradient(180deg, ${hexWithAlpha(surface, 0.96)} 0%, ${hexWithAlpha(pageBg, 1)} 56%, ${hexWithAlpha(pageBg, 1)} 100%)`,
       `radial-gradient(circle at 50% 92%, ${hexWithAlpha(accent, 0.16)} 0%, transparent 62%)`
     ].join(",");
+    renderBoard(payload, accent, neutralTile, outOfRangeTile, onSurf, gridBorder);
   } else {
+    const neutralTile = ensureTileContrast(neutral, pageBg, 0.16);
+    const outOfRangeTile = ensureTileContrast(outR, pageBg, 0.22);
+    const gridBorder = hexWithAlpha("#000000", 0.14);
+    const lightTop = blendHex(surface, "#EEF2FA", 0.62);
+    const lightMid = blendHex(pageBg, "#F3F6FC", 0.4);
+    const lightBottom = blendHex(pageBg, "#DFE6F0", 0.24);
     root.style.background = [
-      `linear-gradient(180deg, ${hexWithAlpha(surface, 1)} 0%, ${hexWithAlpha(pageBg, 1)} 42%, ${hexWithAlpha(pageBg, 1)} 100%)`,
-      `radial-gradient(circle at 50% 12%, ${hexWithAlpha(accent, 0.14)} 0%, ${hexWithAlpha(accent, 0.06)} 30%, transparent 58%)`,
-      `radial-gradient(circle at 50% 88%, ${hexWithAlpha(accent, 0.07)} 0%, transparent 52%)`
+      `radial-gradient(circle at 50% 14%, ${hexWithAlpha(accent, 0.24)} 0%, ${hexWithAlpha(accent, 0.09)} 36%, transparent 70%)`,
+      `linear-gradient(180deg, ${hexWithAlpha(lightTop, 1)} 0%, ${hexWithAlpha(lightMid, 1)} 48%, ${hexWithAlpha(lightBottom, 1)} 100%)`,
+      `radial-gradient(circle at 50% 90%, ${hexWithAlpha(accent, 0.14)} 0%, transparent 60%)`,
+      `linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.06) 100%)`
     ].join(",");
+    renderBoard(payload, accent, neutralTile, outOfRangeTile, onSurf, gridBorder);
   }
-
-  renderBoard(payload, accent, neutral, outR, onSurf);
 }
 
 function hexWithAlpha(hex, alpha) {
