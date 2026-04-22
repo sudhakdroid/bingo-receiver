@@ -174,6 +174,11 @@ function applyDisplayMode(mode) {
   const isHeroLast10 = mode === DISPLAY_MODE_HERO_LAST10;
   const showLast10 = isHeroLast10;
   const showBoard = !isHeroOnly && !isHeroLast10;
+  if (root) {
+    root.classList.toggle("mode-hero", isHeroOnly);
+    root.classList.toggle("mode-hero-last10", isHeroLast10);
+    root.classList.toggle("mode-full-board", showBoard);
+  }
   if (last10WrapEl) last10WrapEl.style.display = showLast10 ? "block" : "none";
   if (boardWrap) boardWrap.style.display = showBoard ? "flex" : "none";
 }

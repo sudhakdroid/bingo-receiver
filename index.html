@@ -68,6 +68,22 @@
       padding-bottom: 0.35rem;
       min-height: 0;
     }
+    .root.mode-hero .title,
+    .root.mode-hero-last10 .title {
+      font-size: clamp(1.7rem, 4.6vmin, 3.2rem);
+      padding-bottom: 0.4rem;
+    }
+    .root.mode-hero .hero,
+    .root.mode-hero-last10 .hero {
+      flex: 1 1 auto;
+      max-height: none;
+      justify-content: center;
+      padding: 0.25rem 0 0.2rem;
+    }
+    .root.mode-hero .hero-inner,
+    .root.mode-hero-last10 .hero-inner {
+      gap: clamp(0.5rem, 1.6vmin, 1rem);
+    }
     /* Match app caller stage: number slides up with fade while phrase/countdown stay static. */
     @keyframes numberReveal {
       0% {
@@ -109,11 +125,23 @@
       /* color + glow set in receiver.js (accent — same as app hero number) */
       max-width: 100%;
     }
+    .root.mode-hero .number,
+    .root.mode-hero-last10 .number {
+      font-size: clamp(5rem, min(34vmin, 44vh), 26rem);
+      line-height: 0.92;
+      letter-spacing: 0.01em;
+    }
     .phrase {
       font-size: clamp(1.05rem, 2.85vmin, 2.45rem);
       opacity: 0.92;
       min-height: 0;
       max-width: 95vw;
+    }
+    .root.mode-hero .phrase,
+    .root.mode-hero-last10 .phrase {
+      font-size: clamp(1.6rem, 4.6vmin, 3.9rem);
+      max-width: 90vw;
+      line-height: 1.15;
     }
     .phrase:empty {
       display: none !important;
@@ -167,6 +195,23 @@
     }
     .last10-chip.empty {
       opacity: 0.32;
+    }
+    .root.mode-hero-last10 .last10-wrap {
+      display: block;
+      width: min(96vw, 1850px);
+      margin-bottom: 0.55rem;
+    }
+    .root.mode-hero-last10 .last10-label {
+      font-size: clamp(1rem, 2vmin, 1.5rem);
+      margin-bottom: 0.4rem;
+    }
+    .root.mode-hero-last10 .last10-row {
+      gap: 0.55rem;
+    }
+    .root.mode-hero-last10 .last10-chip {
+      min-height: clamp(2.2rem, 4.5vmin, 3.2rem);
+      font-size: clamp(1.05rem, 2.3vmin, 1.8rem);
+      border-radius: 14px;
     }
     .board-wrap {
       flex: 1 1 0;
