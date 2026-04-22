@@ -15,6 +15,9 @@ const numberEl = document.getElementById("number");
 const phraseEl = document.getElementById("phrase");
 const countdownEl = document.getElementById("countdown");
 const countdownFillEl = document.getElementById("countdownFill");
+const last10WrapEl = document.getElementById("last10Wrap");
+const last10RowEl = document.getElementById("last10Row");
+const last10LabelEl = document.getElementById("last10Label");
 const boardEl = document.getElementById("board");
 const boardWrap = document.getElementById("boardWrap");
 const castWatermarkEl = document.getElementById("castWatermark");
@@ -30,6 +33,10 @@ let lastPayload = null;
 
 /** Cached board: avoid replacing the whole grid on every draw (only rebuild when bingoSize changes). */
 let boardCache = { bingoSize: null, grid: null };
+
+const DISPLAY_MODE_HERO = "hero_nickname";
+const DISPLAY_MODE_HERO_LAST10 = "hero_nickname_last10";
+const DISPLAY_MODE_FULL_BOARD = "full_board";
 
 function clampToPercent(value, max) {
   if (max <= 0) return 0;
@@ -106,6 +113,69 @@ function parseCalledSet(payload) {
     );
   }
   return new Set();
+}
+
+function parseLast10(payload) {
+  const source = Array.isArray(payload.last10Called) ? payload.last10Called : payload.calledNumbers;
+  if (!Array.isArray(source)) return [];
+  return source
+    .map((x) => Number(x))
+    .filter((n) => Number.isFinite(n))
+    .slice(-10);
+}
+
+function formatCallNumber(n, bingoSize) {
+  if (bingoSize === 75) {
+    if (n >= 1 && n <= 15) return `B${n}`;
+    if (n >= 16 && n <= 30) return `I${n}`;
+    if (n >= 31 && n <= 45) return `N${n}`;
+    if (n >= 46 && n <= 60) return `G${n}`;
+    if (n >= 61 && n <= 75) return `O${n}`;
+  }
+  return String(n);
+}
+
+function renderLast10(payload, accent, neutral, onSurf, pageBg) {
+  if (!last10WrapEl || !last10RowEl || !last10LabelEl) return;
+  const arr = parseLast10(payload);
+  const normalized = new Array(10).fill(null);
+  const start = Math.max(0, 10 - arr.length);
+  for (let i = 0; i < arr.length; i++) normalized[start + i] = arr[i];
+
+  const chipText = pickReadableForeground(TEXT_ON_ACCENT, "#FFFFFF", "#111111", accent);
+  const emptyBorder = hexWithAlpha(onSurf, 0.18);
+  const emptyBg = blendHex(neutral, pageBg, 0.18);
+
+  last10RowEl.replaceChildren();
+  normalized.forEach((n, idx) => {
+    const chip = document.createElement("div");
+    chip.className = `last10-chip${n == null ? " empty" : ""}`;
+    if (n == null) {
+      chip.textContent = "-";
+      chip.style.background = emptyBg;
+      chip.style.color = onSurf;
+      chip.style.borderColor = emptyBorder;
+    } else {
+      chip.textContent = formatCallNumber(n, payload.bingoSize);
+      chip.style.background = accent;
+      chip.style.color = chipText;
+      chip.style.borderColor = "transparent";
+      if (idx === 9) {
+        chip.style.borderColor = JUST_BORDER;
+        chip.style.borderWidth = "2px";
+      }
+    }
+    last10RowEl.appendChild(chip);
+  });
+}
+
+function applyDisplayMode(mode) {
+  const isHeroOnly = mode === DISPLAY_MODE_HERO;
+  const isHeroLast10 = mode === DISPLAY_MODE_HERO_LAST10;
+  const showLast10 = isHeroLast10;
+  const showBoard = !isHeroOnly && !isHeroLast10;
+  if (last10WrapEl) last10WrapEl.style.display = showLast10 ? "block" : "none";
+  if (boardWrap) boardWrap.style.display = showBoard ? "flex" : "none";
 }
 
 function styleCell75(el, n, calledSet, just, prev, accent, neutral, onSurf, gridBorder) {
@@ -367,6 +437,8 @@ function applyCallerState(payload) {
   const pageBg = payload.pageBg || "#111111";
   const onSurfaceVariant = payload.onSurfaceVariant || onSurf;
   const surface = payload.surface || pageBg;
+  const displayModeRaw = typeof payload.displayMode === "string" ? payload.displayMode.trim() : "";
+  const displayMode = displayModeRaw.length > 0 ? displayModeRaw : DISPLAY_MODE_FULL_BOARD;
   const bgIsDark = typeof payload.isDarkTheme === "boolean"
     ? payload.isDarkTheme
     : relativeLuminance(pageBg) < 0.36;
@@ -389,6 +461,9 @@ function applyCallerState(payload) {
   phraseEl.style.color = onSurfaceVariant && String(onSurfaceVariant).trim().length > 0 ? onSurfaceVariant : "#e3e3e3";
 
   countdownFillEl.style.backgroundColor = accent;
+  if (last10LabelEl) {
+    last10LabelEl.style.color = onSurfaceVariant && String(onSurfaceVariant).trim().length > 0 ? onSurfaceVariant : onSurf;
+  }
 
   if (payload.auto === true && typeof payload.countdownSec === "number" && payload.countdownSec > 0) {
     countdownEl.style.display = "block";
@@ -412,7 +487,11 @@ function applyCallerState(payload) {
       `linear-gradient(180deg, ${hexWithAlpha(surface, 0.96)} 0%, ${hexWithAlpha(pageBg, 1)} 56%, ${hexWithAlpha(pageBg, 1)} 100%)`,
       `radial-gradient(circle at 50% 92%, ${hexWithAlpha(accent, 0.16)} 0%, transparent 62%)`
     ].join(",");
-    renderBoard(payload, accent, neutralTile, outOfRangeTile, onSurf, gridBorder);
+    applyDisplayMode(displayMode);
+    renderLast10(payload, accent, neutralTile, onSurf, pageBg);
+    if (displayMode === DISPLAY_MODE_FULL_BOARD) {
+      renderBoard(payload, accent, neutralTile, outOfRangeTile, onSurf, gridBorder);
+    }
   } else {
     const neutralTile = ensureTileContrast(neutral, pageBg, 0.16);
     const outOfRangeTile = ensureTileContrast(outR, pageBg, 0.22);
@@ -426,7 +505,11 @@ function applyCallerState(payload) {
       `radial-gradient(circle at 50% 90%, ${hexWithAlpha(accent, 0.14)} 0%, transparent 60%)`,
       `linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.06) 100%)`
     ].join(",");
-    renderBoard(payload, accent, neutralTile, outOfRangeTile, onSurf, gridBorder);
+    applyDisplayMode(displayMode);
+    renderLast10(payload, accent, neutralTile, onSurf, pageBg);
+    if (displayMode === DISPLAY_MODE_FULL_BOARD) {
+      renderBoard(payload, accent, neutralTile, outOfRangeTile, onSurf, gridBorder);
+    }
   }
 }
 

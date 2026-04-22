@@ -133,6 +133,41 @@
       background: #6a1b9a;
       transition: width 120ms linear;
     }
+    .last10-wrap {
+      width: min(92vw, 1400px);
+      margin: 0 auto 0.4rem;
+      display: none;
+      flex-shrink: 0;
+    }
+    .last10-label {
+      text-align: left;
+      font-size: clamp(0.8rem, 1.4vmin, 1.05rem);
+      opacity: 0.82;
+      margin: 0 0 0.25rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .last10-row {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      gap: 0.35rem;
+    }
+    .last10-chip {
+      min-height: clamp(1.8rem, 3.8vmin, 2.35rem);
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: clamp(0.86rem, 1.6vmin, 1.22rem);
+      line-height: 1;
+      border: 1px solid transparent;
+      box-sizing: border-box;
+      padding: 0 0.25rem;
+    }
+    .last10-chip.empty {
+      opacity: 0.32;
+    }
     .board-wrap {
       flex: 1 1 0;
       min-height: 0;
@@ -199,6 +234,10 @@
     </div>
     <div class="countdown" id="countdown" style="display:none;">
       <div class="countdownFill" id="countdownFill"></div>
+    </div>
+    <div class="last10-wrap" id="last10Wrap">
+      <div class="last10-label" id="last10Label">Last 10 calls</div>
+      <div class="last10-row" id="last10Row"></div>
     </div>
     <div class="board-wrap" id="boardWrap">
       <div class="board" id="board"></div>
